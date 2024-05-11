@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Betting Predictions</title>
+</head>
+<body>
+    <h1>Betting Prediction Form</h1>
+    <form id="predictionForm">
+        Home Team Name:
+        <select id="homeTeam" onchange="updateOpponent()">
+            <!-- Home teams will be populated here -->
+        </select><br>
+        Away Team Name:
+        <select id="awayTeam">
+            <!-- Opponent teams will be populated here -->
+        </select><br>
+        Model:
+        <select id="model">
+            <option value="RC">RC</option>
+            <option value="BsR">BsR</option>
+        </select><br>
+        <button type="button" onclick="submitForm()">Submit</button>
+    </form>
+    <div id="results">Results will appear here after submitting the form.</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/get-teams')
+            .then(response => response.json())
+            .then(data => {
+                const homeTeamSelect = document.getElementById('homeTeam');
+                Object.keys(data).forEach(team => {
+                    let option = document.createElement('option');
+                    option.value = team;
+                    option.text = team;
+                    homeTeamSelect.appendChild(option);
+                });
+                updateOpponent(); // Initial update for away teams
+            });
+        });
+
+        function updateOpponent() {
+            const homeTeam = document.getElementById('homeTeam').value;
+            const awayTeamSelect = document.getElementById('awayTeam');
+            fetch('/get-teams')
+            .then(response => response.json())
+            .then(data => {
+                awayTeamSelect.innerHTML = ''; // Clear existing options
+                data[homeTeam].forEach(team => {
+                    let option = document.createElement('option');
+                    option.value = team;
+                    option.text = team;
+                    awayTeamSelect.appendChild(option);
+                });
+            });
+        }
+
+        function submitForm() {
+            const homeTeam = document.getElementById('homeTeam').value;
+            const awayTeam = document.getElementById('awayTeam').value;
+            const model = document.getElementById('model').value;
+            const resultsDiv = document.getElementById('results');
+            const formData = {
+                homeTeam: homeTeam,
+                awayTeam: awayTeam,
+                model: model
+            };
+
+            resultsDiv.innerHTML = 'Loading...';
+
+            fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data || !data.length) {
+                    resultsDiv.innerHTML = "No data available.";
+                    return;
+                }
+                // Ensure data[0] exists and has the expected properties
+                const firstEntry = data[0];
+                if (!firstEntry) {
+                    resultsDiv.innerHTML = "Data is malformed or empty.";
+                    return;
+                }
+                let formattedData = `<pre>Home Team: ${firstEntry.homeTeam}\nAway Team: ${firstEntry.awayTeam}\nPredicted Home Runs: ${firstEntry.predictedHomeRuns}\nPredicted Away Runs: ${firstEntry.predictedAwayRuns}\nTotal Predicted Runs: ${firstEntry.totalPredictedRuns}\nLine: ${firstEntry.line}\nBet Recommendation: ${firstEntry.betRecommendation}</pre>`;
+                if (model === 'BsR') {
+                    formattedData = `<pre>Home Team: ${firstEntry.homeTeam}\nAway Team: ${firstEntry.awayTeam}\nHome BsR: ${firstEntry.homeBsR}\nAway BsR: ${firstEntry.awayBsR}\nTotal BsR: ${firstEntry.totalBsR}\nLine: ${firstEntry.line}\nBet Recommendation: ${firstEntry.betRecommendation}</pre>`;
+                }
+                resultsDiv.innerHTML = formattedData;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = 'Failed to fetch data.';
+            });
+        }
+    </script>
+</body>
+</html>

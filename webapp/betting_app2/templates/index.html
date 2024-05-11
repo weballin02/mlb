@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Model Comparison</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        label, select, button { margin-top: 10px; display: block; }
+        #results { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Compare RC and BsR Models</h1>
+    <form id="comparisonForm">
+        <label for="homeTeam">Home Team:</label>
+        <select id="homeTeam" name="homeTeam">
+            <!-- Home teams will be populated here -->
+        </select>
+        <label for="awayTeam">Away Team:</label>
+        <select id="awayTeam" name="awayTeam">
+            <!-- Opponent teams will be populated here -->
+        </select>
+        <button type="button" onclick="submitForm()">Compare Models</button>
+    </form>
+    <div id="results">Results will appear here after submitting the form.</div>
+    <script>
+        // Function to populate home teams and set up initial away team loading
+        function populateTeams() {
+            fetch('/get-teams')
+            .then(response => response.json())
+            .then(data => {
+                const homeTeamSelect = document.getElementById('homeTeam');
+                homeTeamSelect.innerHTML = ''; // Clear before populating
+                Object.keys(data).forEach(team => {
+                    let option = document.createElement('option');
+                    option.value = team;
+                    option.text = team;
+                    homeTeamSelect.appendChild(option);
+                });
+                updateAwayTeams(); // Populate away teams for the first loaded home team
+            });
+        }
+
+        // Function to update away teams based on selected home team
+        function updateAwayTeams() {
+            const homeTeam = document.getElementById('homeTeam').value;
+            const awayTeamSelect = document.getElementById('awayTeam');
+            fetch('/get-teams')
+            .then(response => response.json())
+            .then(data => {
+                awayTeamSelect.innerHTML = ''; // Clear before populating
+                data[homeTeam].forEach(team => {
+                    let option = document.createElement('option');
+                    option.value = team;
+                    option.text = team;
+                    awayTeamSelect.appendChild(option);
+                });
+            });
+        }
+
+        // Function to handle form submission and fetch comparison results
+        function submitForm() {
+            const homeTeam = document.getElementById('homeTeam').value;
+            const awayTeam = document.getElementById('awayTeam').value;
+            fetch('/compare', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({homeTeam: homeTeam, awayTeam: awayTeam})
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('results');
+                // Display formatted results
+                resultsDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('results').innerHTML = 'Failed to fetch data.';
+            });
+        }
+
+        // Event listener to load teams on page load and update away teams on home team change
+        document.addEventListener('DOMContentLoaded', function() {
+            populateTeams();
+            document.getElementById('homeTeam').addEventListener('change', updateAwayTeams);
+        });
+    </script>
+</body>
+</html>
